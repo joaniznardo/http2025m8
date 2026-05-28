@@ -1,0 +1,4 @@
+FROM nginx:alpine
+RUN apk add --no-cache logrotate
+COPY nginx-logrotate.conf /etc/logrotate.d/nginx-lab
+RUN chmod 644 /etc/logrotate.d/nginx-lab && chown root:root /etc/logrotate.d/nginx-lab

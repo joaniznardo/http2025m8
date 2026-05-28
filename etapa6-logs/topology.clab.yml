@@ -1,0 +1,81 @@
+# Etapa 6: Gestió de logs
+# ========================
+# - Formats de log personalitzats (combined, json, timing)
+# - Logs separats per virtual host
+# - Logrotate configurat dins el contenidor
+# - Switch containeritzat (nginx-lab-switch) per a la xarxa interna
+# - Volum persistent per als logs (etapa6-logs/logs/)
+#
+# Desplegament: ./lab.sh deploy 6
+
+name: http-lab-e6
+
+mgmt:
+  network: clab-mgmt
+  ipv4-subnet: 172.20.20.0/24
+
+topology:
+  nodes:
+    switch:
+      kind: linux
+      image: nginx-lab-switch:latest
+      exec:
+        - switch-init.sh
+
+    nginx-proxy:
+      kind: linux
+      image: nginx-lab-logs:latest
+      ports:
+        - "80:80"
+        - "443:443"
+      binds:
+        - ./configs/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+        - ../etapa3-proxy/configs/nginx/sites/proxy-params.conf:/etc/nginx/sites/proxy-params.conf:ro
+        - ../etapa3-proxy/configs/nginx/sites/proxy-headers.conf:/etc/nginx/sites/proxy-headers.conf:ro
+        - ../certs/nginx.crt:/etc/nginx/certs/nginx.crt:ro
+        - ../certs/nginx.key:/etc/nginx/certs/nginx.key:ro
+        - ./logs/:/var/log/nginx/
+      exec:
+        - ip addr add 10.20.0.10/24 dev eth1
+        - ip link set eth1 up
+
+    web01:
+      kind: linux
+      image: nginx:alpine
+      binds:
+        - ../etapa3-proxy/configs/web01/:/usr/share/nginx/html/:ro
+      exec:
+        - ip addr add 10.20.0.11/24 dev eth1
+        - ip link set eth1 up
+
+    web02:
+      kind: linux
+      image: nginx:alpine
+      binds:
+        - ../etapa3-proxy/configs/web02/:/usr/share/nginx/html/:ro
+      exec:
+        - ip addr add 10.20.0.12/24 dev eth1
+        - ip link set eth1 up
+
+    web03:
+      kind: linux
+      image: nginx:alpine
+      binds:
+        - ../etapa3-proxy/configs/web03/:/usr/share/nginx/html/:ro
+      exec:
+        - ip addr add 10.20.0.13/24 dev eth1
+        - ip link set eth1 up
+
+    client:
+      kind: linux
+      image: nicolaka/netshoot:latest
+      exec:
+        - ip addr add 10.20.0.20/24 dev eth1
+        - ip link set eth1 up
+
+  links:
+    - endpoints: ["nginx-proxy:eth1", "switch:eth1"]
+    - endpoints: ["web01:eth1",       "switch:eth2"]
+    - endpoints: ["web02:eth1",       "switch:eth3"]
+    - endpoints: ["web03:eth1",       "switch:eth4"]
+    - endpoints: ["client:eth1",      "switch:eth5"]
